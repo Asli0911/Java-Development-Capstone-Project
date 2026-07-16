@@ -26,10 +26,11 @@ public class TokenService {
     private final AdminRepository adminRepository;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
-    public TokenService(AdminRepository adminRepository,DoctorRepository doctorRepository,PatientRepository patientRepository) {
-        this.adminRepository=adminRepository;
+
+    public TokenService(AdminRepository adminRepository, DoctorRepository doctorRepository, PatientRepository patientRepository) {
+        this.adminRepository = adminRepository;
         this.doctorRepository = doctorRepository;
-        this.patientRepository=patientRepository;
+        this.patientRepository = patientRepository;
     }
 
     // Return type changed to SecretKey to fix verifyWith(...) issue
@@ -37,6 +38,9 @@ public class TokenService {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
+    /**
+     * Generates a signed JWT containing the user's email as the subject.
+     */
     public String generateToken(String email) {
         return Jwts.builder()
                 .subject(email)
@@ -44,8 +48,11 @@ public class TokenService {
                 .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7))
                 .signWith(getSigningKey()) // clean & modern
                 .compact();
-    }    
+    }
 
+    /**
+     * Extracts the email (subject) stored in the token's claims.
+     */
     public String extractEmail(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey()) // No more error now
@@ -55,30 +62,27 @@ public class TokenService {
                 .getSubject();
     }
 
-    public boolean validateToken(String token,String user) {
+    /**
+     * Validates that the token is well-formed, unexpired, and belongs to
+     * an existing user of the given role (admin, doctor, or patient).
+     */
+    public boolean validateToken(String token, String user) {
         try {
             String extracted = extractEmail(token);
-            if(user.equals("admin"))
-            {
-                Admin admin =adminRepository.findByUsername(extracted);
-                if(admin!=null)
-                {
+
+            if (user.equals("admin")) {
+                Admin admin = adminRepository.findByUsername(extracted);
+                if (admin != null) {
                     return true;
                 }
-            }
-            else if(user.equals("doctor"))
-            {
-                Doctor doctor=doctorRepository.findByEmail(extracted);
-                if(doctor!=null)
-                {
+            } else if (user.equals("doctor")) {
+                Doctor doctor = doctorRepository.findByEmail(extracted);
+                if (doctor != null) {
                     return true;
                 }
-            }
-            else if(user.equals("patient"))
-            {
-                Patient patient=patientRepository.findByEmail(extracted);
-                if(patient!=null)
-                {
+            } else if (user.equals("patient")) {
+                Patient patient = patientRepository.findByEmail(extracted);
+                if (patient != null) {
                     return true;
                 }
             }
@@ -89,20 +93,31 @@ public class TokenService {
         }
     }
 
+    /**
+     * Alias for extractEmail(token), provided for callers that expect
+     * this method name. Delegates to the existing extraction logic
+     * rather than duplicating it.
+     */
     public String extractEmailFromToken(String token) {
-        
-        throw new UnsupportedOperationException("Unimplemented method 'extractEmailFromToken'");
+        return extractEmail(token);
     }
 
-    public String generateToken(Object object, String string, String username) {
-        
-        throw new UnsupportedOperationException("Unimplemented method 'generateToken'");
-    }
-
+    /**
+     * Extracts the doctor's ID associated with the token by first
+     * pulling the email out of the token's claims, then looking up
+     * the corresponding Doctor record.
+     *
+     * @param token the JWT to inspect
+     * @return the doctor's ID, or null if the token is invalid or no
+     *         matching doctor is found
+     */
     public Long extractDoctorIdFromToken(String token) {
-        
-        throw new UnsupportedOperationException("Unimplemented method 'extractDoctorIdFromToken'");
+        try {
+            String email = extractEmail(token);
+            Doctor doctor = doctorRepository.findByEmail(email);
+            return (doctor != null) ? doctor.getId() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
-
-   
 }
