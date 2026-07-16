@@ -50,4 +50,3 @@ public class PrescriptionController {
         return prescriptionService.getPrescription(appointmentId);
     }
 }
-
